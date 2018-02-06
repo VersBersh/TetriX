@@ -30,13 +30,25 @@ Public Enum TetrominoeType
     O = 6
 End Enum
 
-Public Declare Function SetTimer Lib "user32" (ByVal hWnd As Long, _
-                                               ByVal nIDEvent As Long, _
-                                               ByVal uElapse As Long, _
-                                               ByVal lpTimerFunc As Long) As Long
+#If Win64 Then
+    Public Declare PtrSafe Function SetTimer Lib "user32" (ByVal hWnd As LongPtr, _
+                                                   ByVal nIDEvent As Long, _
+                                                   ByVal uElapse As Long, _
+                                                   ByVal lpTimerFunc As LongPtr) As Long
+    
+    Public Declare PtrSafe Function KillTimer Lib "user32" (ByVal hWnd As LongPtr, _
+                                                    ByVal nIDEvent As Long) As Long
 
-Public Declare Function KillTimer Lib "user32" (ByVal hWnd As Long, _
-                                                ByVal nIDEvent As Long) As Long
+#Else
+    Public Declare Function SetTimer Lib "user32" (ByVal hWnd As Long, _
+                                                   ByVal nIDEvent As Long, _
+                                                   ByVal uElapse As Long, _
+                                                   ByVal lpTimerFunc As Long) As Long
+    
+    Public Declare Function KillTimer Lib "user32" (ByVal hWnd As Long, _
+                                                    ByVal nIDEvent As Long) As Long
+#End If
+
 
 '******************************
 '  GLOBALS
@@ -139,11 +151,17 @@ End Function
 '  TIMER
 '******************************
 
-Private Function GetAddressOf(a As Long) As Long
+#If Win64 Then
+    Private Function GetAddressOf(a As LongPtr) As LongPtr
+        GetAddressOf = a
+    End Function
 
-    GetAddressOf = a
-    
-End Function
+#Else
+    Private Function GetAddressOf(a As Long) As Long
+        GetAddressOf = a
+    End Function
+
+#End If
 
 Private Sub startTimer(ByVal interval As Long)
 
@@ -166,10 +184,26 @@ End Sub
 
 Public Sub pauseGame()
     endTimer
+    
+    Application.OnKey "{UP}"
+    Application.OnKey "{LEFT}"
+    Application.OnKey "{RIGHT}"
+    Application.OnKey "{DOWN}"
+    Application.OnKey " "
+    
 End Sub
 
 Public Sub resumeGame()
-    startTimer timeInterval
+    If (GameTimerID = 0) And Not (timeInterval = 0) Then
+    
+        Application.OnKey "{UP}", "rotate"
+        Application.OnKey "{LEFT}", "left"
+        Application.OnKey "{RIGHT}", "right"
+        Application.OnKey "{DOWN}", "dropOnce"
+        Application.OnKey " ", "dropAllTheWay"
+        
+        startTimer timeInterval
+    End If
 End Sub
 
 Private Sub checkLevel()
@@ -233,6 +267,10 @@ Public Sub clear_board()
         Set board = New TetrisBoard
         board.init Sheets("Tetris").Range("tetris_board"), Sheets("Tetris").Range("score"), Sheets("Tetris").Range("preview_window"), Sheets("Tetris").Range("level")
     End If
+    
+    If Not (GameTimerID = 0) Then
+        endTimer
+    End If
 
     board.clearBoard
     deactivate
@@ -248,6 +286,7 @@ Public Sub deactivate()
     Application.OnKey "{RIGHT}"
     Application.OnKey "{DOWN}"
     Application.OnKey " "
+    timeInterval = 0
     
 End Sub
 
